@@ -3,7 +3,9 @@ import { Activity, Cpu, Flame, Layers, ShieldAlert, Zap, TrendingUp, RefreshCw, 
 import './App.css';
 import './print.css';
 
-const API_BASE = "http://127.0.0.1:8001/api";
+// Dynamic production/development environment variables
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001/api";
+const WS_BASE = import.meta.env.VITE_WS_BASE_URL || "ws://127.0.0.1:8001";
 
 function App() {
   const [isBooting, setIsBooting] = useState(true);
@@ -45,10 +47,10 @@ function App() {
       .catch(err => console.error(err));
   }, []);
 
-  // WebSocket Connection for Sucker Rod Pump (SRP)
+  // WebSocket Connection for Sucker Rod Pump (SRP) using WS_BASE
   useEffect(() => {
     setIsConnected(false);
-    const ws = new WebSocket(`ws://localhost:8001/ws/edge-telemetry?well_id=${selectedWell}`);
+    const ws = new WebSocket(`${WS_BASE}/ws/edge-telemetry?well_id=${selectedWell}`);
     
     ws.onopen = () => setIsConnected(true);
     ws.onmessage = (event) => {
