@@ -1,0 +1,14 @@
+# Python / Virtual Environment
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# System Files
+.DS_Store
