@@ -3,9 +3,9 @@ import { Activity, Cpu, Flame, Layers, ShieldAlert, Zap, TrendingUp, RefreshCw, 
 import './App.css';
 import './print.css';
 
-// Dynamic production/development environment variables
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001/api";
-const WS_BASE = import.meta.env.VITE_WS_BASE_URL || "ws://127.0.0.1:8001";
+// Hardcoded production URLs for absolute reliability on Vercel & Render
+const API_BASE = "https://aikyam2.onrender.com/api";
+const WS_BASE = "wss://aikyam2.onrender.com";
 
 function App() {
   const [isBooting, setIsBooting] = useState(true);
@@ -47,24 +47,51 @@ function App() {
       .catch(err => console.error(err));
   }, []);
 
-  // WebSocket Connection for Sucker Rod Pump (SRP) using WS_BASE
+  // Resilient WebSocket Connection with Auto-Reconnect for Render
   useEffect(() => {
-    setIsConnected(false);
-    const ws = new WebSocket(`${WS_BASE}/ws/edge-telemetry?well_id=${selectedWell}`);
-    
-    ws.onopen = () => setIsConnected(true);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setWsData(data);
-      if (data.wave_analysis?.is_rod_floating) {
-        setAuditLogs(prev => [
-          { time: new Date().toLocaleTimeString(), text: `[${selectedWell}] SRP Rod Floating Hazard Isolated! VFD Throttled.` },
-          ...prev.slice(0, 4)
-        ]);
-      }
+    let ws = null;
+    let isMounted = true;
+
+    const connectWs = () => {
+      if (!isMounted) return;
+      setIsConnected(false);
+      ws = new WebSocket(`${WS_BASE}/ws/edge-telemetry?well_id=${selectedWell}`);
+      
+      ws.onopen = () => {
+        if (isMounted) setIsConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        if (!isMounted) return;
+        const data = JSON.parse(event.data);
+        setWsData(data);
+        if (data.wave_analysis?.is_rod_floating) {
+          setAuditLogs(prev => [
+            { time: new Date().toLocaleTimeString(), text: `[${selectedWell}] SRP Rod Floating Hazard Isolated! VFD Throttled.` },
+            ...prev.slice(0, 4)
+          ]);
+        }
+      };
+
+      ws.onclose = () => {
+        if (isMounted) {
+          setIsConnected(false);
+          // Auto-reconnect after 3 seconds if Render socket drops or sleeps
+          setTimeout(connectWs, 3000);
+        }
+      };
+
+      ws.onerror = () => {
+        if (ws) ws.close();
+      };
     };
-    ws.onclose = () => setIsConnected(false);
-    return () => ws.close();
+
+    connectWs();
+
+    return () => {
+      isMounted = false;
+      if (ws) ws.close();
+    };
   }, [selectedWell]);
 
   const runStrategicEvaluation = async () => {
