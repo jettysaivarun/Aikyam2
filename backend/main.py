@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
@@ -7,7 +7,7 @@ from edge_loop import compute_kinematic_decoupling, solve_gibbs_wave_equation
 from strategic_loop import calculate_walther_viscosity, strategic_economic_evaluation
 from pinn_solver import compute_pinn_enthalpy_loss
 
-app = FastAPI(title="AIKYAM Well-to-Surface Digital Twin API", version="3.0.0")
+app = FastAPI(title="AIKYAM Digital Twin API", version="3.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,15 +27,17 @@ class PinnPayload(BaseModel):
     time_t: float
     target_temp: float
 
-# WebSocket Endpoint for Sub-Second Edge Safety Loop (10Hz simulation)
+# Multi-well dynamic telemetry simulation over WebSocket
 @app.websocket("/ws/edge-telemetry")
-async def websocket_edge_telemetry(websocket: WebSocket):
+async def websocket_edge_telemetry(websocket: WebSocket, well_id: str = Query("BGW-01")):
     await websocket.accept()
     try:
         angle = 0.0
+        # Well-specific baseline multipliers
+        multiplier = 1.0 if well_id == "BGW-01" else (1.15 if well_id == "BGW-02" else 0.9)
         while True:
             angle = (angle + 15.0) % 360.0
-            rod_load = float(17500 + 3500 * np.sin(np.radians(angle)) + np.random.normal(0, 300))
+            rod_load = float((17500 * multiplier) + 3500 * np.sin(np.radians(angle)) + np.random.normal(0, 250))
             surf_disp = float(1.5 * (1 - np.cos(np.radians(angle))) / 2)
             
             t_net = compute_kinematic_decoupling(angle, rod_load)
@@ -43,16 +45,30 @@ async def websocket_edge_telemetry(websocket: WebSocket):
             wave_analysis = solve_gibbs_wave_equation(dummy_load_array, surf_disp)
             
             payload = {
+                "well_id": well_id,
                 "crank_angle": round(angle, 1),
                 "polished_rod_load": round(rod_load, 1),
                 "net_torque": round(t_net, 2),
-                "wave_analysis": wave_analysis
+                "wave_analysis": wave_analysis,
+                "timestamp": asyncio.get_event_loop().time()
             }
             
             await websocket.send_json(payload)
             await asyncio.sleep(0.1)  # 10 Hz edge tick rate
     except WebSocketDisconnect:
-        print("Edge telemetry client disconnected.")
+        print(f"Client disconnected from well {well_id}")
+
+@app.get("/api/fleet/summary")
+def get_fleet_summary():
+    return {
+        "active_wells": 3,
+        "field_name": "Baghewala Heavy Oil Field, Rajasthan",
+        "wells": [
+            {"id": "BGW-01", "status": "Optimal", "temp_c": 68.5, "isor": 2.8, "viscosity_cp": 5400},
+            {"id": "BGW-02", "status": "Thermal Injection Active", "temp_c": 79.2, "isor": 3.4, "viscosity_cp": 1200},
+            {"id": "BGW-03", "status": "Rod Floating Warning", "temp_c": 52.0, "isor": 4.1, "viscosity_cp": 18500}
+        ]
+    }
 
 @app.post("/api/strategic/evaluate-well")
 def evaluate_well_thermodynamics(data: StrategicPayload):
