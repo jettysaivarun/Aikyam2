@@ -92,3 +92,12 @@ def evaluate_well_thermodynamics(data: StrategicPayload):
 @app.post("/api/strategic/pinn-solve")
 def solve_pinn_physics(data: PinnPayload):
     return {"status": "success", "physics": compute_pinn_enthalpy_loss(data.radius_r, data.time_t, data.target_temp)}
+
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "service": "AIKYAM Digital Twin API",
+        "version": "3.5.0",
+        "docs": "/docs"
+    }
