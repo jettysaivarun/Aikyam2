@@ -4,8 +4,8 @@ import './App.css';
 import './print.css';
 
 // Dynamic production/development environment variables
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001/api";
-const WS_BASE = import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8001";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001/api";
+const WS_BASE = import.meta.env.VITE_WS_BASE_URL || "ws://127.0.0.1:8001";
 
 function App() {
   const [isBooting, setIsBooting] = useState(true);
