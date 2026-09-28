@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 class StrategicPayload(BaseModel):
+    cycle_phase: str = "Production"
     wellhead_temp_c: float
     steam_injected_bbl: float
     cumulative_oil_bbl: float
@@ -74,7 +75,19 @@ def get_fleet_summary():
 def evaluate_well_thermodynamics(data: StrategicPayload):
     viscosity = calculate_walther_viscosity(data.wellhead_temp_c)
     economics = strategic_economic_evaluation(data.steam_injected_bbl, data.cumulative_oil_bbl)
-    return {"status": "success", "viscosity_cp": viscosity, "economics": economics}
+    
+    # Map recommendations according to the cycle phase and economics
+    field_action = economics.get("recommendation", "Continue Production Phase (Puff)")
+    if data.cycle_phase == "Injection" and data.wellhead_temp_c > 250:
+        field_action = "Steam Injection Threshold Reached. Transition to Soak Phase."
+    elif data.cycle_phase == "Production" and economics.get("isor", 0) > 4.0:
+        field_action = "High ISOR detected. Schedule next CSS Injection (Huff)."
+
+    return {
+        "heavy_oil_viscosity_cp": round(float(viscosity), 1),
+        "isor": economics.get("isor", 0.0),
+        "field_action": field_action
+    }
 
 @app.post("/api/strategic/pinn-solve")
 def solve_pinn_physics(data: PinnPayload):

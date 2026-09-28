@@ -1,0 +1,37 @@
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0;
+  }
+
+  .navbar, .fleet-strip, .action-btn, .well-selector-box select {
+    display: none !important;
+  }
+
+  .app-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .dashboard-grid {
+    display: block !important;
+  }
+
+  .glass-panel {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+  }
+
+  .panel-header h2, .metric-val, .res-row b, .well-id-text {
+    color: #0f172a !important;
+  }
+
+  .dyno-svg rect {
+    fill: #f8fafc !important;
+    stroke: #cbd5e1 !important;
+  }
+}
